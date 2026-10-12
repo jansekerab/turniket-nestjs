@@ -1,0 +1,91 @@
+{
+  "name": "turniket-nestjs",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node --env-file=.env -r ts-node/register src/main.ts",
+    "device": "node --env-file=.env -r ts-node/register src/fake-device.ts",
+    "test": "jest",
+    "test:int": "docker compose --profile test up -d --wait mysql-test && node --env-file=.env node_modules/.bin/jest -c jest.int.config.js",
+    "test:cov": "jest --coverage",
+    "test:tz": "for z in UTC Europe/Prague Pacific/Kiritimati America/Los_Angeles; do echo \"== TZ $z\"; TEST_TZ=$z jest --silent || exit 1; done",
+    "test:mutation": "stryker run",
+    "lint": "eslint . && prettier --check src test scripts",
+    "arch": "depcruise src",
+    "security": "npm audit --omit=dev --audit-level=high && docker run --rm -v \"$PWD\":/repo zricethezav/gitleaks:latest git /repo --no-banner --config /repo/.gitleaks.toml && docker run --rm -v \"$PWD\":/src semgrep/semgrep semgrep scan --config p/default --config /src/.semgrep/rules.yml --metrics=off --error --exclude node_modules --exclude zalohy --exclude reports --exclude .stryker-tmp -q",
+    "load": "node --env-file=.env -r ts-node/register scripts/load.ts",
+    "check": "tsc -p tsconfig.json --noEmit && npm run lint && npm run arch && npm run test:cov && npm run test:tz && npm run test:int && npm run security",
+    "check:full": "npm run check && npm run test:mutation"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.2.7",
+    "@nestjs/core": "^11.2.7",
+    "@nestjs/platform-express": "^11.2.7",
+    "@nestjs/swagger": "^11.4.7",
+    "@nestjs/throttler": "^6.7.1",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "helmet": "^8.3.0",
+    "mysql2": "^3.11.5",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@nestjs/testing": "^11.2.7",
+    "@stryker-mutator/core": "^10.0.0",
+    "@stryker-mutator/jest-runner": "^10.0.0",
+    "@stryker-mutator/typescript-checker": "^10.0.0",
+    "@types/autocannon": "^7.12.7",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.2",
+    "@types/supertest": "^7.2.1",
+    "autocannon": "^8.0.0",
+    "dependency-cruiser": "^18.5.0",
+    "eslint": "^9.39.5",
+    "jest": "^29.7.0",
+    "prettier": "^3.9.9",
+    "supertest": "^7.3.0",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.71.0"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/test/**/*.spec.ts"
+    ],
+    "globalSetup": "<rootDir>/test/global-setup.js",
+    "collectCoverageFrom": [
+      "src/**/*.ts",
+      "!src/main.ts",
+      "!src/fake-device.ts",
+      "!src/**/*.module.ts",
+      "!src/db/db.service.ts"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "lines": 90,
+        "branches": 80
+      },
+      "./src/entries/domain/": {
+        "lines": 100,
+        "branches": 100
+      },
+      "./src/entries/application/": {
+        "lines": 100,
+        "branches": 100
+      }
+    },
+    "coverageDirectory": "reports/coverage"
+  },
+  "overrides": {
+    "@nestjs/swagger": {
+      "js-yaml": "^5.4.2"
+    }
+  }
+}

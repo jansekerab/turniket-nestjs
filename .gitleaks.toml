@@ -1,0 +1,7 @@
+# Secret scan of the git history: npm run security
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Obviously fake values in tests and CI: anything ending in -0123456789 (e.g. staff-key-0123456789, ci-root-0123456789)"
+regexes = ['''^[a-z][a-z-]*-0123456789$''']

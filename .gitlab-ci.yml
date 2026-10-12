@@ -1,0 +1,80 @@
+# The same gates as `npm run check`, split into stages so a failure says where it is.
+# Mutation tests run only on a schedule (nightly) — they take minutes.
+stages: [lint, test, integration, security, nightly]
+
+default:
+  image: node:22
+  cache:
+    key: { files: [package-lock.json] }
+    paths: [.npm/]
+  before_script:
+    - npm ci --cache .npm --prefer-offline
+
+variables:
+  # Throw-away secrets for CI only — real ones live in CI/CD variables, never in the repo.
+  MYSQL_ROOT_PASSWORD: ci-root-0123456789
+  DB_PASS: ci-gym-0123456789
+
+types-lint-arch:
+  stage: lint
+  script:
+    - npx tsc -p tsconfig.json --noEmit
+    - npm run lint
+    - npm run arch
+
+unit:
+  stage: test
+  script:
+    - npm run test:cov
+    - npm run test:tz
+  coverage: '/All files\s*\|\s*([\d.]+)/'
+  artifacts:
+    when: always
+    paths: [reports/coverage/]
+
+integration:
+  stage: integration
+  services:
+    - name: mysql:8.4
+      alias: mysql
+      command: ['--character-set-server=utf8mb4', '--collation-server=utf8mb4_0900_ai_ci']
+  variables:
+    MYSQL_DATABASE: gym
+    MYSQL_USER: gym
+    MYSQL_PASSWORD: $DB_PASS
+  script:
+    # The service container does not run initdb scripts from the repo — load the schema as root.
+    - apt-get update -qq && apt-get install -y -qq default-mysql-client > /dev/null
+    - until mysqladmin ping -h mysql --silent; do sleep 1; done
+    - mysql -h mysql -uroot -p"$MYSQL_ROOT_PASSWORD" gym < docker/schema.sql
+    # Locally the test DB is on 127.0.0.1:3308; in CI it is the "mysql" service on 3306.
+    - TEST_DB_HOST=mysql TEST_DB_PORT=3306 npx jest -c jest.int.config.js
+
+audit:
+  stage: security
+  script:
+    - npm audit --omit=dev --audit-level=high
+
+secrets:
+  stage: security
+  image: { name: zricethezav/gitleaks:latest, entrypoint: [''] }
+  before_script: []
+  script:
+    - gitleaks git . --no-banner --config .gitleaks.toml
+
+semgrep:
+  stage: security
+  image: semgrep/semgrep
+  before_script: []
+  script:
+    - semgrep scan --config p/default --config .semgrep/rules.yml --metrics=off --error --exclude node_modules
+
+mutation:
+  stage: nightly
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  script:
+    - npm run test:mutation
+  artifacts:
+    when: always
+    paths: [reports/mutation/]

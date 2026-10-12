@@ -1,0 +1,48 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: turniket-mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_0900_ai_ci
+    environment:
+      # From .env — no passwords in this file.
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set it in .env}
+      MYSQL_DATABASE: gym
+      MYSQL_USER: gym
+      MYSQL_PASSWORD: ${DB_PASS:?set it in .env}
+    ports:
+      # Only this machine — not the whole LAN.
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - ./docker/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - turniket-data:/var/lib/mysql
+    healthcheck:
+      # ping answers without a password, so no password ends up in `ps` or `docker inspect`.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  # Throw-away database for integration tests: same schema, data in memory, gone after `down`.
+  # Started only with: docker compose --profile test up -d mysql-test
+  mysql-test:
+    image: mysql:8.4
+    profiles: [test]
+    container_name: turniket-mysql-test
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_0900_ai_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set it in .env}
+      MYSQL_DATABASE: gym
+      MYSQL_USER: gym
+      MYSQL_PASSWORD: ${DB_PASS:?set it in .env}
+    ports:
+      - "127.0.0.1:3308:3306"
+    tmpfs:
+      - /var/lib/mysql
+    volumes:
+      - ./docker/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+volumes:
+  turniket-data:

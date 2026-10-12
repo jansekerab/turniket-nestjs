@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Mutation testing = the positive control, automated: Stryker breaks the code on purpose (<= to <, removes a call, flips a condition) and checks that a test fails. A surviving mutant is a place where the tests would not notice a bug.",
+  "testRunner": "jest",
+  "jest": { "configFile": "package.json" },
+  "checkers": ["typescript"],
+  "tsconfigFile": "tsconfig.json",
+  "mutate": [
+    "src/entries/**/*.ts",
+    "src/device/**/*.ts",
+    "src/auth/**/*.ts",
+    "src/config/**/*.ts",
+    "!src/**/*.module.ts"
+  ],
+  "coverageAnalysis": "perTest",
+  "thresholds": { "high": 90, "low": 80, "break": 75 },
+  "reporters": ["clear-text", "html", "progress"],
+  "htmlReporter": { "fileName": "reports/mutation/index.html" },
+  "tempDirName": ".stryker-tmp",
+  "concurrency": 4
+}

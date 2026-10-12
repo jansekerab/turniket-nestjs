@@ -1,0 +1,49 @@
+# Project security rules (npm run security), run together with the public set p/default.
+# Several public sets (p/nodejs, p/typescript, p/owasp-top-ten…) found NOTHING in a probe with an obvious
+# SQL injection and eval() in a Nest controller; p/default found both (checked 01.10., docs/adr/0004).
+# These rules spell out what matters here, so it does not depend on which public set is picked.
+rules:
+  - id: sql-built-from-strings
+    message: SQL built by concatenation or a template — pass values as ? parameters.
+    severity: ERROR
+    languages: [typescript]
+    patterns:
+      - pattern-either:
+          - pattern: $DB.query($A + $B, ...)
+          - pattern: $DB.exec($A + $B, ...)
+          - pattern: $DB.execute($A + $B, ...)
+          - pattern: $DB.query(`...${$X}...`, ...)
+          - pattern: $DB.exec(`...${$X}...`, ...)
+          - pattern: $DB.execute(`...${$X}...`, ...)
+
+  - id: dynamic-code-execution
+    message: eval / new Function / vm runs text as code.
+    severity: ERROR
+    languages: [typescript]
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+      - pattern: vm.runInNewContext(...)
+      - pattern: vm.runInThisContext(...)
+
+  - id: shell-command
+    message: A shell command from the service — no route needs one.
+    severity: ERROR
+    languages: [typescript]
+    pattern-either:
+      - pattern: child_process.exec(...)
+      - pattern: child_process.execSync(...)
+      - pattern: exec(...)
+      - pattern: execSync(...)
+
+  - id: plain-compare-of-secret
+    message: Compare keys and tokens with timingSafeEqual, not === (timing leak).
+    severity: ERROR
+    languages: [typescript]
+    pattern-either:
+      - pattern: $X.readerKey === $Y
+      - pattern: $X.staffKey === $Y
+      - pattern: $Y === $X.readerKey
+      - pattern: $Y === $X.staffKey
+      - pattern: $X.token === $Y
+      - pattern: $Y === $X.token
